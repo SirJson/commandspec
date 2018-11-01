@@ -1,7 +1,5 @@
 extern crate shlex;
 #[macro_use]
-extern crate failure;
-#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
@@ -20,8 +18,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::path::{Path, PathBuf};
 
-// Re-export for macros.
-pub use failure::Error;
 
 pub mod macros;
 mod process;
