@@ -1,4 +1,10 @@
-# commandspec
+# Too big 2 fail commandspec
+
+Simple modification of the original commandspec. I removed failure from the dependencies because I don't see any reason why my application needs to indirectly depend on it as well. And I updated the version numbers in Cargo.toml. 
+
+That's it folks!
+
+---
 
 Simple Rust macro for building `std::process::Command` objects. Uses macro_rules! and works on stable.
 
