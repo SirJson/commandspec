@@ -1,8 +1,16 @@
-# Too big 2 fail commandspec
+# tb2f_commandspec
 
-Simple modification of the original commandspec. I removed failure from the dependencies because I don't see any reason why my application needs to indirectly depend on it as well. And I updated the version numbers in Cargo.toml. 
+Like commandspec minus "failure"
 
-That's it folks!
+* I removed failure from the dependencies because I don't see any reason why my application needs to indirectly depend on it as well. 
+* I updated all other dependencies
+* I simplified the error handling. It might now not be as fancy as failure but if you don't want to depend on it here you go.
+
+> tb2f means too big too fail.
+
+> Also remember just because I prefer not to use failure doesn't mean the original comspec is bad. I provide just another option. 
+
+That's it folks! I leave the old readme blow almost as it is because the API didn't change.
 
 ---
 
@@ -10,16 +18,16 @@ Simple Rust macro for building `std::process::Command` objects. Uses macro_rules
 
 ```toml
 [dependencies]
-commandspec = "0.10"
+tb2f_commandspec = "0.12.2"
 ```
 
 Then:
 
 ```rust
 #[macro_use]
-extern crate commandspec;
+extern crate tb2f_commandspec;
 
-use commandspec::CommandSpec; // .execute() method on Command
+use tb2f_commandspec::CommandSpec; // .execute() method on Command
 use std::process::Command;
 
 let result = execute!(
@@ -47,6 +55,7 @@ Format of the commandspec input, in order:
 * format-like invocation makes it easy to interpolate variables, with automatic quoting
 * Equivalent syntax to shell when prototyping
 * Works on stable Rust.
+* "failure" free. - _Doesn't mean it won't fail or panic though :wink:_
 
 ## License
 

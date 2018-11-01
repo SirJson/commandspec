@@ -2,9 +2,9 @@
 authors = ["Tim Ryan <tim@timryan.org>"]
 description = "Rust macro to build std::process::Command objects with shell syntax. Uses macro_rules! and works on stable. But doesn't depend on failure."
 license = "MIT OR Apache-2.0"
-name = "commandspec"
-repository = "https://github.com/SirJson/commandspec"
-version = "0.12.1"
+name = "tb2f_commandspec"
+repository = "https://github.com/SirJson/tb2f_commandspec"
+version = "0.12.2"
 
 [dependencies]
 shlex = "0.1.1"

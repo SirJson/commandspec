@@ -30,6 +30,15 @@ lazy_static! {
     static ref PID_MAP: Arc<Mutex<HashMap<i32, Process>>> = Arc::new(Mutex::new(HashMap::new()));
 }
 
+// This is basically what failure does but without bail!
+macro_rules! check {
+    ($cond:expr, $e:expr) => {
+        if !($cond) {
+            return Err($e);
+        }
+    };
+}
+
 pub fn disable_cleanup_on_ctrlc() {
     signal::uninstall_handler();
 }
@@ -74,16 +83,34 @@ pub trait CommandSpecExt {
     fn scoped_spawn(self) -> Result<SpawnGuard, ::std::io::Error>;
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug)]
 pub enum CommandError {
-    #[fail(display = "Encountered an IO error: {:?}", _0)]
-    Io(#[cause] ::std::io::Error),
-
-    #[fail(display = "Command was interrupted.")]
+    Io(::std::io::Error),
     Interrupt,
-
-    #[fail(display = "Command failed with error code {}.", _0)]
     Code(i32),
+    TooManyCDArgs(usize,usize),
+    NotEnoughExportArgs(usize,usize),
+    NoChangeDir,
+    InvalidExport,
+    ExportMispositioned,
+    NoCommand
+}
+
+impl std::fmt::Display for CommandError
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> fmt::Result {
+        match self {
+            CommandError::Io(err) => write!(f,"{}",format_args!("Encountered an IO error: {:?}",err)),
+            CommandError::Interrupt => write!(f, "Command was interrupted."),
+            CommandError::Code(code) => write!(f, "{}",format_args!("Command failed with error code {}",code)),
+            CommandError::TooManyCDArgs(expected,found) => write!(f, "{}",format_args!("Too many arguments in cd; expected {}, found {}",expected,found)),
+            CommandError::NotEnoughExportArgs(expected,found) => write!(f, "{}",format_args!("Not enough arguments in export; expected at least {}, found {}",expected,found)),
+            CommandError::NoChangeDir => write!(f, "cd should be the first line in your command! macro."),
+            CommandError::InvalidExport => write!(f, "Expected export of the format NAME=VALUE"),
+            CommandError::ExportMispositioned => write!(f, "exports should follow cd but precede your command in the command! macro."),
+            CommandError::NoCommand => write!(f, "Didn't find a command in your command! macro."),
+        }
+    }
 }
 
 impl CommandError {
@@ -315,14 +342,14 @@ where P: Into<&'p Path> {
 }
 
 #[cfg(not(windows))]
-fn canonicalize_path<'p, P>(path: P) -> Result<PathBuf, Error>
+fn canonicalize_path<'p, P>(path: P) -> Result<PathBuf, CommandError>
 where P: Into<&'p Path> {
-    Ok(path.into().canonicalize()?)
+    Ok(path.into().canonicalize().map_err(|e| CommandError::Io(e))?)
 }
 
 //---------------
 
-pub fn commandify(value: String) -> Result<Command, Error> {
+pub fn commandify(value: String) -> Result<Command, CommandError> {
     let lines = value.trim().split("\n").map(String::from).collect::<Vec<_>>();
 
     #[derive(Debug, PartialEq)]
@@ -349,20 +376,20 @@ pub fn commandify(value: String) -> Result<Command, Error> {
             match line.get(0).map(|x| x.as_ref()) {
                 Some("cd") => {
                     if state != SpecState::Cd {
-                        bail!("cd should be the first line in your command! macro.");
+                        return Err(CommandError::NoChangeDir);
                     }
-                    ensure!(line.len() == 2, "Too many arguments in cd; expected 1, found {}", line.len() - 1);
+                    check!(line.len() == 2, CommandError::TooManyCDArgs(1,line.len() - 1));
                     cd = Some(line.remove(1));
                     state = SpecState::Env;
                 }
                 Some("export") => {
                     if state != SpecState::Cd && state != SpecState::Env {
-                        bail!("exports should follow cd but precede your command in the command! macro.");
+                        return Err(CommandError::ExportMispositioned);
                     }
-                    ensure!(line.len() >= 2, "Not enough arguments in export; expected at least 1, found {}", line.len() - 1);
+                    check!(line.len() >= 2, CommandError::NotEnoughExportArgs(1,line.len() - 1));
                     for item in &line[1..] {
                         let mut items = item.splitn(2, "=").collect::<Vec<_>>();
-                        ensure!(items.len() > 0, "Expected export of the format NAME=VALUE");
+                        check!(items.len() > 0, CommandError::InvalidExport);
                         env.insert(items[0].to_string(), items[1].to_string());
                     }
                     state = SpecState::Env;
@@ -375,7 +402,7 @@ pub fn commandify(value: String) -> Result<Command, Error> {
         }
     }
     if state != SpecState::Cmd || command_lines.is_empty() {
-        bail!("Didn't find a command in your command! macro.");
+        return Err(CommandError::NoCommand);
     }
 
     // Join the command string and split out binary / args.
