@@ -4,9 +4,9 @@ Like commandspec minus `failure`
 
 * I removed failure from the dependencies because I don't see any reason why my application needs to indirectly depend on it as well. 
 * I updated all other dependencies
-* I simplified the error handling. CommandError implements now `std::fmt::Display` with the same messages + metadata so there should be no difference in information between the two libraries. It might now not be as fancy as failure but if you don't want to depend on `failure` here you go.
+* I simplified the error handling. `CommandError` implements now `std::fmt::Display` with the same messages + metadata so there should be no difference in information between the two libraries. It might now not be as fancy as failure but if you don't want to depend on `failure` here you go.
 
-> tb2f means too big too fail.
+> tb2f means too big to fail.
 
 > Also remember just because I prefer not to use `failure` doesn't mean the original comspec is bad. I provide just another option. 
 
