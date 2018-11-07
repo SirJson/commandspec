@@ -4,8 +4,10 @@
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 
+type CleanupMutex = Mutex<Option<Box<Fn(self::Signal) + Send>>>;
+
 lazy_static! {
-    static ref CLEANUP: Mutex<Option<Box<Fn(self::Signal) + Send>>> = Mutex::new(None);
+    static ref CLEANUP: CleanupMutex = Mutex::new(None);
 }
 
 #[cfg(unix)]
@@ -80,8 +82,9 @@ pub fn new(signal_name: Option<String>) -> Option<Signal> {
 static GLOBAL_HANDLER_ID: AtomicUsize = ATOMIC_USIZE_INIT;
 
 #[cfg(unix)]
+#[allow(clippy::unnecessary_operation)]
 pub fn uninstall_handler() {
-    GLOBAL_HANDLER_ID.fetch_add(1, Ordering::Relaxed) + 1;
+    GLOBAL_HANDLER_ID.fetch_add(1, Ordering::Relaxed) + 1; // I'm not 100% sure if this operation is unnecessary
 
     use nix::libc::c_int;
     use nix::sys::signal::*;
@@ -133,8 +136,7 @@ where
     // Spawn a thread to catch these signals
     let id = GLOBAL_HANDLER_ID.fetch_add(1, Ordering::Relaxed) + 1;
     thread::spawn(move || {
-        let mut is_current = true;
-        while is_current {
+        loop {
             let signal = mask.wait().expect("Unable to sigwait");
             debug!("Received {:?}", signal);
 

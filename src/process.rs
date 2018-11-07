@@ -82,7 +82,8 @@ mod imp {
     }
 
     #[allow(unknown_lints)]
-    #[allow(mutex_atomic)]
+    #[allow(clippy::mutex_atomic)]
+    #[allow(clippy::new_ret_no_self)] // We actually return our self but it might not always be successful
     impl Process {
         pub fn new(
             mut command: Command,
@@ -114,7 +115,7 @@ mod imp {
             loop {
                 match waitpid(Pid::from_raw(-self.pgid), Some(WaitPidFlag::WNOHANG)) {
                     Ok(WaitStatus::Exited(_, _)) | Ok(WaitStatus::Signaled(_, _, _)) => {
-                        finished = finished && true
+                        finished = finished
                     }
                     Ok(_) => {
                         finished = false;

@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate commandspec;
+extern crate tb2f_commandspec;
 
 #[cfg(not(windows))]
 mod sh {

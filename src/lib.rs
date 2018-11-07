@@ -71,7 +71,7 @@ pub struct SpawnGuard(i32);
 
 impl ::std::ops::Drop for SpawnGuard {
     fn drop(&mut self) {
-        PID_MAP.lock().unwrap().remove(&self.0).map(|process| process.reap());
+        if let Some(process) = PID_MAP.lock().unwrap().remove(&self.0) { process.reap() }
     }
 }
 
@@ -131,15 +131,13 @@ impl CommandSpecExt for Command {
             Ok(mut child) => {
                 match child.wait() {
                     Ok(status) => {
-                        let ret = if status.success() {
+                        if status.success() {
                             Ok(())
                         } else if let Some(code) = status.code() {
                             Err(CommandError::Code(code))
                         } else {
                             Err(CommandError::Interrupt)
-                        };
-
-                        ret
+                        }
                     }
                     Err(err) => {
                         Err(CommandError::Io(err))
@@ -167,7 +165,7 @@ pub enum CommandArg {
 }
 
 fn shell_quote(value: &str) -> String {
-    shlex::quote(&format!("{}", value)).to_string()
+    shlex::quote(value).to_string()
 }
 
 impl fmt::Display for CommandArg {
@@ -176,12 +174,12 @@ impl fmt::Display for CommandArg {
         match *self {
             Empty => write!(f, ""),
             Literal(ref value) => {
-                write!(f, "{}", shell_quote(&format!("{}", value)))
+                write!(f, "{}", shell_quote(value))
             },
             List(ref list) => {
                 write!(f, "{}", list
                     .iter()
-                    .map(|x| shell_quote(&format!("{}", x)).to_string())
+                    .map(|x| shell_quote(x).to_string())
                     .collect::<Vec<_>>()
                     .join(" "))
             }
@@ -344,13 +342,13 @@ where P: Into<&'p Path> {
 #[cfg(not(windows))]
 fn canonicalize_path<'p, P>(path: P) -> Result<PathBuf, CommandError>
 where P: Into<&'p Path> {
-    Ok(path.into().canonicalize().map_err(|e| CommandError::Io(e))?)
+    Ok(path.into().canonicalize().map_err(CommandError::Io)?)
 }
 
 //---------------
 
-pub fn commandify(value: String) -> Result<Command, CommandError> {
-    let lines = value.trim().split("\n").map(String::from).collect::<Vec<_>>();
+pub fn commandify(value: &str) -> Result<Command, CommandError> {
+    let lines = value.trim().split('\n').map(String::from).collect::<Vec<_>>();
 
     #[derive(Debug, PartialEq)]
     enum SpecState {
@@ -365,7 +363,7 @@ pub fn commandify(value: String) -> Result<Command, CommandError> {
     let mut state = SpecState::Cd;
     let mut command_lines = vec![];
     for raw_line in lines {
-        let mut line = shlex::split(&raw_line).unwrap_or(vec![]);
+        let mut line = shlex::split(&raw_line).unwrap_or_default();
         if state == SpecState::Cmd {
             command_lines.push(raw_line);
         } else {
@@ -388,8 +386,8 @@ pub fn commandify(value: String) -> Result<Command, CommandError> {
                     }
                     check!(line.len() >= 2, CommandError::NotEnoughExportArgs(1,line.len() - 1));
                     for item in &line[1..] {
-                        let mut items = item.splitn(2, "=").collect::<Vec<_>>();
-                        check!(items.len() > 0, CommandError::InvalidExport);
+                        let mut items = item.splitn(2, '=').collect::<Vec<_>>();
+                        check!(!items.is_empty(), CommandError::InvalidExport);
                         env.insert(items[0].to_string(), items[1].to_string());
                     }
                     state = SpecState::Env;

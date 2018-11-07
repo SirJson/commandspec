@@ -5,7 +5,7 @@ macro_rules! command {
     ($fmt:expr, $( $id:ident = $value:expr ),* $(,)*) => (
         {
             $crate::commandify(
-                format!($fmt, $( $id = $crate::command_arg(&$value) ),*)
+                &format!($fmt, $( $id = $crate::command_arg(&$value) ),*)
             )
         }
     );
@@ -28,7 +28,7 @@ macro_rules! sh_command {
     ($fmt:expr) => ( sh_command!($fmt,) );
     ($fmt:expr, $( $id:ident = $value:expr ),* $(,)*) => (
         $crate::commandify(
-            format!(
+            &format!(
                 "sh -c {}",
                 $crate::command_arg(
                     &format!("set -e\n\n{}", format!($fmt, $( $id = $crate::command_arg(&$value) ,)*)),
@@ -43,7 +43,7 @@ macro_rules! sush_command {
     ($fmt:expr) => ( sush_command!($fmt,) );
     ($fmt:expr, $( $id:ident = $value:expr ),* $(,)*) => (
         $crate::commandify(
-            format!(
+            &format!(
                 "pkexec sh -c {}",
                 $crate::command_arg(
                     &format!("set -e\n\n{}", format!($fmt, $( $id = $crate::command_arg(&$value) ,)*)),
